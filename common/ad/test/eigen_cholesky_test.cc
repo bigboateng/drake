@@ -99,14 +99,14 @@ GTEST_TEST(EigenCholeskyTest, LdltDynamicSolve) {
 // zero-skip; this control case documents that boundary (and must keep passing
 // on all supported Eigen versions).
 GTEST_TEST(EigenCholeskyTest, LltFixedSizeSolve) {
-  Eigen::Matrix<AutoDiff, 2, 2> M;
+  Matrix2<AutoDiff> M;
   M.setZero();
   M(0, 0) = 4.0;
   M(1, 1) = 9.0;
-  Eigen::Matrix<AutoDiff, 2, 1> b;
+  Vector2<AutoDiff> b;
   b[0] = AutoDiff{0.0, Vector2d::Unit(0)};
   b[1] = AutoDiff{5.0, Vector2d::Unit(1)};
-  const Eigen::Matrix<AutoDiff, 2, 1> x = M.llt().solve(b);
+  const Vector2<AutoDiff> x = M.llt().solve(b);
 
   VectorX<AutoDiff> x_dynamic(2);
   x_dynamic << x[0], x[1];
