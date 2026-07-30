@@ -2,6 +2,8 @@
 
 #include "drake/common/ad/auto_diff.h"
 #include "drake/common/test_utilities/eigen_matrix_compare.h"
+#include "drake/math/autodiff.h"
+#include "drake/math/autodiff_gradient.h"
 
 // Regression tests for drake#17037: Eigen's triangular solvers skip the
 // divide-and-propagate step for any right-hand-side component that compares
@@ -16,6 +18,8 @@ namespace drake {
 namespace ad {
 namespace {
 
+using drake::math::ExtractGradient;
+using drake::math::InitializeAutoDiff;
 using Eigen::Matrix2d;
 using Eigen::MatrixXd;
 using Eigen::Vector2d;
@@ -24,24 +28,9 @@ constexpr bool kOldEigen = !EIGEN_VERSION_AT_LEAST(5, 0, 0);
 
 constexpr double kTolerance = 1e-14;
 
-// Returns the gradient of v with respect to the two independent variables.
-MatrixXd ExtractGradient(const VectorX<AutoDiff>& v) {
-  MatrixXd result = MatrixXd::Zero(v.size(), 2);
-  for (int i = 0; i < v.size(); ++i) {
-    const auto& derivs = v[i].derivatives();
-    for (int j = 0; j < derivs.size(); ++j) {
-      result(i, j) = derivs[j];
-    }
-  }
-  return result;
-}
-
 // Returns b = [b0, b1] with ∂b/∂b = I₂, so that ∂x/∂b = M⁻¹ exactly.
 VectorX<AutoDiff> MakeIndependentRhs(double b0, double b1) {
-  VectorX<AutoDiff> b(2);
-  b[0] = AutoDiff{b0, Vector2d::Unit(0)};
-  b[1] = AutoDiff{b1, Vector2d::Unit(1)};
-  return b;
+  return InitializeAutoDiff(Vector2d{b0, b1});
 }
 
 // Solving with llt() exercises the non-unit-diagonal triangular solve, where
