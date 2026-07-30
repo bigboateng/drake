@@ -20,6 +20,8 @@ using Eigen::Matrix2d;
 using Eigen::MatrixXd;
 using Eigen::Vector2d;
 
+constexpr bool kOldEigen = !EIGEN_VERSION_AT_LEAST(5, 0, 0);
+
 constexpr double kTolerance = 1e-14;
 
 // Returns the gradient of v with respect to the two independent variables.
@@ -46,10 +48,6 @@ VectorX<AutoDiff> MakeIndependentRhs(double b0, double b1) {
 // the zero-skip would omit the division of the derivatives by the Cholesky
 // diagonal. x[0] has value zero with nonzero derivatives.
 GTEST_TEST(EigenCholeskyTest, LltDynamicSolve) {
-#if !EIGEN_VERSION_AT_LEAST(5, 0, 0)
-  GTEST_SKIP() << "Eigen 3.4.x lacks the is_identically_zero customization "
-                  "point; see drake#17037.";
-#endif
   MatrixX<AutoDiff> M = MatrixX<AutoDiff>::Zero(2, 2);
   M(0, 0) = 4.0;
   M(1, 1) = 9.0;
@@ -57,8 +55,13 @@ GTEST_TEST(EigenCholeskyTest, LltDynamicSolve) {
   const VectorX<AutoDiff> x = M.llt().solve(b);
 
   const Vector2d value_expected(0.0, 5.0 / 9.0);
-  const MatrixXd gradient_expected =
+  MatrixXd gradient_expected =
       (Matrix2d() << 0.25, 0.0, 0.0, 1.0 / 9.0).finished();
+  if (kOldEigen) {
+    // Eigen 3.4.x lacks the is_identically_zero customization point, so expect
+    // a *wrong* answer in that case. See drake#17037.
+    gradient_expected(0, 0) = 1.0;
+  }
   EXPECT_TRUE(
       CompareMatrices(ExtractGradient(x), gradient_expected, kTolerance));
   EXPECT_NEAR(x[0].value(), value_expected[0], kTolerance);
@@ -69,10 +72,6 @@ GTEST_TEST(EigenCholeskyTest, LltDynamicSolve) {
 // zero-skip would omit propagating the derivatives of the intermediate
 // component y[0] = b[0] (value zero, nonzero derivatives) into y[1].
 GTEST_TEST(EigenCholeskyTest, LdltDynamicSolve) {
-#if !EIGEN_VERSION_AT_LEAST(5, 0, 0)
-  GTEST_SKIP() << "Eigen 3.4.x lacks the is_identically_zero customization "
-                  "point; see drake#17037.";
-#endif
   MatrixX<AutoDiff> M(2, 2);
   M(0, 0) = 4.0;
   M(0, 1) = 2.0;
@@ -82,8 +81,14 @@ GTEST_TEST(EigenCholeskyTest, LdltDynamicSolve) {
   const VectorX<AutoDiff> x = M.ldlt().solve(b);
 
   // M⁻¹ = (1/8) [3 -2; -2 4].
-  const MatrixXd gradient_expected =
+  MatrixXd gradient_expected =
       (Matrix2d() << 3.0 / 8.0, -2.0 / 8.0, -2.0 / 8.0, 4.0 / 8.0).finished();
+  if (kOldEigen) {
+    // Eigen 3.4.x lacks the is_identically_zero customization point, so expect
+    // a *wrong* answer in that case. See drake#17037.
+    gradient_expected(0, 0) = 0.25;
+    gradient_expected(1, 0) = 0;
+  }
   EXPECT_TRUE(
       CompareMatrices(ExtractGradient(x), gradient_expected, kTolerance));
   EXPECT_NEAR(x[0].value(), -0.25, kTolerance);
